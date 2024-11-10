@@ -1,4 +1,4 @@
-import { Component, AfterViewInit } from '@angular/core';
+import { Component, AfterViewInit, OnDestroy } from '@angular/core';
 import * as faceapi from 'face-api.js';
 
 @Component({
@@ -6,11 +6,12 @@ import * as faceapi from 'face-api.js';
   templateUrl: 'home.page.html',
   styleUrls: ['home.page.scss'],
 })
-export class HomePage implements AfterViewInit {
+export class HomePage implements AfterViewInit, OnDestroy {
   video!: HTMLVideoElement;
   isEyesClosed = false;
   eyesClosedTime = 0;
-  interval: any;
+  detectionInterval: any;
+  EAR_THRESHOLD = 0.3; // Ajuste conforme necessário para maior precisão
 
   async ngAfterViewInit() {
     this.video = document.getElementById('videoElement') as HTMLVideoElement;
@@ -20,14 +21,20 @@ export class HomePage implements AfterViewInit {
       return;
     }
 
-    await faceapi.nets.tinyFaceDetector.loadFromUri('../../assets/models');
-    await faceapi.nets.faceLandmark68Net.loadFromUri('../../assets/models');
-
-    this.startVideo();
+    try {
+      // Carregar modelos de forma assíncrona e paralela para otimização
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri('../../assets/models'),
+        faceapi.nets.faceLandmark68Net.loadFromUri('../../assets/models')
+      ]);
+      this.startVideo();
+    } catch (error) {
+      console.error('Erro ao carregar os modelos:', error);
+    }
   }
 
   startVideo() {
-    navigator.mediaDevices.getUserMedia({ video: {} })
+    navigator.mediaDevices.getUserMedia({ video: true })
       .then(stream => {
         this.video.srcObject = stream;
         this.video.play();
@@ -37,7 +44,7 @@ export class HomePage implements AfterViewInit {
   }
 
   async detectFace() {
-    const canvas = document.getElementById('overlay') as HTMLCanvasElement | null;
+    const canvas = document.getElementById('overlay') as HTMLCanvasElement;
     if (!canvas) {
       console.error('Erro: elemento canvas não encontrado');
       return;
@@ -45,64 +52,56 @@ export class HomePage implements AfterViewInit {
 
     faceapi.matchDimensions(canvas, this.video);
 
-    this.interval = setInterval(async () => {
+    this.detectionInterval = setInterval(async () => {
       const detections = await faceapi.detectAllFaces(
         this.video,
         new faceapi.TinyFaceDetectorOptions()
       ).withFaceLandmarks();
 
-      const resizedDetections = faceapi.resizeResults(detections, {
-        width: this.video.videoWidth,
-        height: this.video.videoHeight,
-      });
-
       const context = canvas.getContext('2d');
       if (context) {
         context.clearRect(0, 0, canvas.width, canvas.height);
+      }
+
+      if (detections.length > 0) {
+        const resizedDetections = faceapi.resizeResults(detections, {
+          width: this.video.videoWidth,
+          height: this.video.videoHeight
+        });
+
         faceapi.draw.drawDetections(canvas, resizedDetections);
         faceapi.draw.drawFaceLandmarks(canvas, resizedDetections);
+
+        this.evaluateEyeStatus(resizedDetections[0].landmarks);
       } else {
-        console.error('Erro: não foi possível obter o contexto 2D do canvas');
-        return;
+        this.updateStatus('Buscando face', 'white');
       }
+    }, 150); // Redução no intervalo para balancear precisão e performance
+  }
 
-      const statusElement = document.getElementById('status');
-      if (resizedDetections.length > 0) {
-        const landmarks = resizedDetections[0].landmarks;
-        const leftEye = landmarks.getLeftEye();
-        const rightEye = landmarks.getRightEye();
-        
-        const isClosed = this.checkIfEyesClosed(leftEye, rightEye);
-        if (statusElement) {
-          if (isClosed) {
-            statusElement.textContent = 'Status: Olhos fechados';
-            statusElement.style.color = 'red';
-          } else {
-            statusElement.textContent = 'Status: Olhos abertos';
-            statusElement.style.color = 'green';
-          }
-        }
+  evaluateEyeStatus(landmarks: faceapi.FaceLandmarks68) {
+    const leftEye = landmarks.getLeftEye();
+    const rightEye = landmarks.getRightEye();
+    const isClosed = this.checkIfEyesClosed(leftEye, rightEye);
+    const statusElement = document.getElementById('status');
 
-        // Verifica continuamente se os olhos estão fechados
-        if (isClosed) {
-          if (!this.isEyesClosed) {
-            this.isEyesClosed = true;
-            this.eyesClosedTime = Date.now();
-          } else if (Date.now() - this.eyesClosedTime > 2000) {
-            // Emite som se os olhos estiverem fechados por mais de 2 segundos
-            this.emitSound();
-          }
-        } else {
-          this.isEyesClosed = false;
-          this.eyesClosedTime = 0; // Reseta o tempo se os olhos estiverem abertos
+    if (statusElement) {
+      if (isClosed) {
+        statusElement.textContent = 'Status: Olhos fechados';
+        statusElement.style.color = 'red';
+        if (!this.isEyesClosed) {
+          this.isEyesClosed = true;
+          this.eyesClosedTime = Date.now();
+        } else if (Date.now() - this.eyesClosedTime > 4000) {
+          this.emitSound();
         }
       } else {
-        if (statusElement) {
-          statusElement.textContent = 'Buscando face';
-          statusElement.style.color = 'white';
-        }
+        statusElement.textContent = 'Status: Olhos abertos';
+        statusElement.style.color = 'green';
+        this.isEyesClosed = false;
+        this.eyesClosedTime = 0;
       }
-    }, 100);
+    }
   }
 
   checkIfEyesClosed(leftEye: any, rightEye: any): boolean {
@@ -115,13 +114,28 @@ export class HomePage implements AfterViewInit {
 
     const leftEAR = eyeAspectRatio(leftEye);
     const rightEAR = eyeAspectRatio(rightEye);
+    const averageEAR = (leftEAR + rightEAR) / 2;
 
-    // Um limiar para olhos fechados; ajuste conforme necessário
-    return (leftEAR + rightEAR) / 2 < 0.25;
+    // Ajuste do limiar para diferentes condições de iluminação e tipos de rosto
+    return averageEAR < this.EAR_THRESHOLD;
   }
 
   emitSound() {
     const audio = new Audio('../../assets/alert.mp3');
     audio.play();
+  }
+
+  ngOnDestroy() {
+    if (this.detectionInterval) {
+      clearInterval(this.detectionInterval);
+    }
+  }
+
+  updateStatus(message: string, color: string) {
+    const statusElement = document.getElementById('status');
+    if (statusElement) {
+      statusElement.textContent = message;
+      statusElement.style.color = color;
+    }
   }
 }
