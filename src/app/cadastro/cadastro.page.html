@@ -1,0 +1,19 @@
+<ion-content class="ion-padding">
+  <div class="logo-container">
+    <img src="assets/logo.png" alt="Logo do App" />
+  </div>
+  <ion-item> 
+    <ion-title style="color: aliceblue;">WakeUp safe</ion-title>
+  </ion-item>
+  <ion-item>
+    <ion-label position="floating">Email</ion-label>
+    <ion-input [(ngModel)]="email" type="email"></ion-input>
+  </ion-item>
+  <ion-item>
+    <ion-label position="floating">Senha</ion-label>
+    <ion-input [(ngModel)]="password" type="password"></ion-input>
+  </ion-item>
+  
+  <ion-button expand="full" (click)="signup()">Criar Conta</ion-button>
+ 
+</ion-content>

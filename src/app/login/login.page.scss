@@ -1,0 +1,17 @@
+.logo-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px; /* Adapta o espaço conforme necessário */
+  }
+  
+  .logo-container img {
+    max-width: 150px; /* Ajuste este valor para o tamanho desejado */
+    height: auto;
+  }
+
+  .google-login-button {
+    background-color: #db4437; /* Vermelho do Google */
+    color: white;
+    --background-hover: #c3342b; /* Tom mais escuro para hover */
+    --background-activated: #b02b1e; /* Tom mais escuro para quando ativado */
+  }

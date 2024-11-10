@@ -1,17 +1,38 @@
-import { Component, AfterViewInit, OnDestroy } from '@angular/core';
+import { Component, AfterViewInit, OnDestroy, OnInit } from '@angular/core';
 import * as faceapi from 'face-api.js';
+import { AngularFireAuth } from '@angular/fire/compat/auth';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-home',
   templateUrl: 'home.page.html',
   styleUrls: ['home.page.scss'],
 })
-export class HomePage implements AfterViewInit, OnDestroy {
+export class HomePage implements AfterViewInit, OnDestroy, OnInit {
   video!: HTMLVideoElement;
   isEyesClosed = false;
   eyesClosedTime = 0;
   detectionInterval: any;
   EAR_THRESHOLD = 0.3; // Ajuste conforme necessário para maior precisão
+  userName: string | null = null;
+
+  constructor(private afAuth: AngularFireAuth, private router: Router) {}
+
+  ngOnInit() {
+    // Verifica se o usuário está autenticado
+    this.afAuth.authState.subscribe(user => {
+      if (user) {
+        if (user.displayName === null) {
+          this.userName = user.email;
+        } else {
+          this.userName = user.displayName;
+        }
+      } else {
+        // Redireciona para a página de login se o usuário não estiver autenticado
+        this.router.navigate(['/login']);
+      }
+    });
+  }
 
   async ngAfterViewInit() {
     this.video = document.getElementById('videoElement') as HTMLVideoElement;
@@ -136,6 +157,15 @@ export class HomePage implements AfterViewInit, OnDestroy {
     if (statusElement) {
       statusElement.textContent = message;
       statusElement.style.color = color;
+    }
+  }
+
+  async logout() {
+    try {
+      await this.afAuth.signOut();
+      this.router.navigate(['/login']); // Redireciona para a página de login após o logout
+    } catch (error) {
+      console.error('Erro ao deslogar:', error);
     }
   }
 }
