@@ -1,12 +1,13 @@
 <ion-content class="ion-padding">
   <div class="logo-container">
     <img src="assets/logo.png" alt="Logo do App" />
-    
   </div>
-  
-  <ion-item> 
-    <ion-title style="color: aliceblue;">WakeUp safe</ion-title>
-  </ion-item>
+
+  <!-- Adicionando o título e centralizando-o -->
+  <ion-title style="color: aliceblue; text-align: center; display: block; margin-top: 20px;">
+    WakeUp safe
+  </ion-title>
+
   <ion-item>
     <ion-label position="floating">Email</ion-label>
     <ion-input [(ngModel)]="email" type="email"></ion-input>
@@ -15,7 +16,7 @@
     <ion-label position="floating">Senha</ion-label>
     <ion-input [(ngModel)]="password" type="password"></ion-input>
   </ion-item>
-  
+
   <ion-button expand="full" (click)="login()">Entrar</ion-button>
   <ion-button expand="full" class="google-login-button" (click)="loginWithGoogle()">
     Entrar com Google
