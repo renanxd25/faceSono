@@ -1,0 +1,7 @@
+{
+  "name": "SleepDetectionApp",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular"
+}
