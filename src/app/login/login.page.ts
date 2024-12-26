@@ -17,7 +17,7 @@ export class LoginPage {
   async login() {
     try {
       await this.afAuth.signInWithEmailAndPassword(this.email, this.password);
-      this.router.navigate(['/home']);
+      this.router.navigate(['/semconexaocomservidor']);
     } catch (error) {
       console.error('Erro ao fazer login:', error);
     }
@@ -27,7 +27,7 @@ export class LoginPage {
     try {
       const result = await this.afAuth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
       console.log('Usuário logado com sucesso:', result);
-      this.router.navigate(['/home']);
+      this.router.navigate(['/semconexaocomservidor']);
     } catch (error) {
       console.error('Erro ao fazer login com o Google:', error);
     }
